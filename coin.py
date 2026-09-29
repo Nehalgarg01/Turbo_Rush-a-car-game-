@@ -3,10 +3,11 @@ import random
 
 
 class Coin:
-    def __init__(self, speed):
-        lanes = [220, 315, 410, 505]
+    def __init__(self, speed, lanes=None):
+        if lanes is None:
+            lanes = [220, 315, 410, 505]
 
-        self.x = random.choice(lanes)
+        self.x = random.choice(lanes) + 13
         self.y = -30
 
         self.size = 24

@@ -2,9 +2,11 @@ import pygame
 
 
 class Player:
-    def __init__(self, x, y):
+    def __init__(self, x, y, min_x=0, max_x=800):
         self.x = x
         self.y = y
+        self.min_x = min_x 
+        self.max_x = max_x
 
         self.width = 50
         self.height = 90
@@ -22,11 +24,11 @@ class Player:
             self.x += self.speed
 
         # Keep car on road
-        if self.x < 205:
-            self.x = 205
+        if self.x < self.min_x:
+            self.x = self.min_x
 
-        if self.x > 545:
-            self.x = 545
+        if self.x > self.max_x:
+            self.x = self.max_x
 
     def draw(self, screen, nitro=False):
 

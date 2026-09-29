@@ -12,12 +12,20 @@ pygame.init()
 # ==========================================
 # WINDOW
 
-WIDTH = 800
-HEIGHT = 600
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+WIDTH, HEIGHT = screen.get_size()
 
-screen = pygame.display.set_mode(
-    (WIDTH, HEIGHT)
-)
+ROAD_WIDTH = 500
+ROAD_X = (WIDTH - ROAD_WIDTH) // 2
+ROAD_RIGHT = ROAD_X + ROAD_WIDTH
+CENTER_X = WIDTH // 2
+
+LANES = [
+    ROAD_X + 45,
+    ROAD_X + 160,
+    ROAD_X + 285,
+    ROAD_X + 405
+]
 
 pygame.display.set_caption(
     "Turbo Rush"
@@ -51,15 +59,27 @@ font = pygame.font.Font(None, 32)
 big_font = pygame.font.Font(None, 70)
 small_font = pygame.font.Font(None, 24)
 
+def draw_heart(surface, x, y, size=18, color=RED):
+    r = size // 4
+    pygame.draw.circle(surface, color, (x + r, y + r), r)
+    pygame.draw.circle(surface, color, (x + 3 * r, y + r), r)
+    points = [
+        (x, y + r),
+        (x + 4 * r, y + r),
+        (x + 2 * r, y + size)
+    ]
+    pygame.draw.polygon(surface, color, points)
+
 
 # ==========================================
 # PLAYER
 
-player = Player(375, 470)
-
+player = Player(CENTER_X - 25, HEIGHT - 130, min_x=ROAD_X + 5, max_x=ROAD_RIGHT - 55)
 
 # ==========================================
 # GAME VARIABLES
+
+selected_mode = "day"
 
 score = 0
 coins_collected = 0
@@ -107,7 +127,8 @@ def reset_game():
     global game_over
     global hit_cooldown
 
-    player.x = 375
+    player.x = CENTER_X - 25
+    player.y = HEIGHT - 130
 
     score = 0
     coins_collected = 0
@@ -154,7 +175,17 @@ while running:
 
         if event.type == pygame.KEYDOWN:
 
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
+            if not game_started:
+                if event.key == pygame.K_d:
+                    selected_mode = "day"
+                elif event.key == pygame.K_n:
+                    selected_mode = "night"
+
             if event.key == pygame.K_RETURN:
+ 
 
                 if not game_started:
                     reset_game()
@@ -163,7 +194,6 @@ while running:
 
                 if game_over:
                     reset_game()
-
 
     # ======================================
     # START SCREEN
@@ -192,30 +222,41 @@ while running:
             WHITE
         )
 
+        mode_prompt = font.render(
+            f"Mode: [D] Day  [N] Night (Current: {selected_mode.upper()})",
+            True,
+            YELLOW
+        )
+
         controls = small_font.render(
-            "LEFT / RIGHT = Drive     SPACE = Nitro",
+            "LEFT / RIGHT = Drive     SPACE = Nitro   ESC = Quit",
             True,
             WHITE
         )
 
         screen.blit(
             title,
-            (250, 180)
+            title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 120))
         )
 
         screen.blit(
             subtitle,
-            (245, 260)
+            subtitle.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 40))
+        )
+
+        screen.blit(
+            mode_prompt,
+            mode_prompt.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30))
         )
 
         screen.blit(
             start,
-            (285, 340)
+            start.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 90))
         )
 
         screen.blit(
             controls,
-            (260, 390)
+            controls.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 140))
         )
 
         pygame.display.update()
@@ -224,22 +265,18 @@ while running:
 
         continue
 
-
     # ======================================
     # GAME LOGIC
-
 
     if not game_over:
 
         # ----------------------------------
         # LEVEL
-    
 
         level = min(
             10,
             1 + score // 100
         )
-
 
         # ----------------------------------
         # SPEED
@@ -253,7 +290,6 @@ while running:
         # PLAYER
 
         player.move()
-
 
         # ----------------------------------
         # NITRO
@@ -277,7 +313,6 @@ while running:
 
                 nitro += 0.12
 
-
         # ----------------------------------
         # ROAD MOVEMENT
 
@@ -286,7 +321,6 @@ while running:
         if road_offset >= 80:
 
             road_offset = 0
-
 
         # ----------------------------------
         # ENEMY SPAWNING
@@ -301,11 +335,10 @@ while running:
         if spawn_timer >= spawn_delay:
 
             enemies.append(
-                Enemy(enemy_speed)
+                Enemy(enemy_speed, LANES)
             )
 
             spawn_timer = 0
-
 
         # ----------------------------------
         # MOVE ENEMIES
@@ -340,11 +373,10 @@ while running:
         if coin_timer >= 1200:
 
             coins.append(
-                Coin(road_speed)
+                Coin(road_speed, LANES)
             )
 
             coin_timer = 0
-
 
         # ----------------------------------
         # MOVE COINS
@@ -370,14 +402,11 @@ while running:
         # ----------------------------------
         # PLAYER RECT
     
-
         player_rect = player.get_rect()
-
 
         # ----------------------------------
         # COIN COLLECTION
     
-
         for coin in coins[:]:
 
             if player_rect.colliderect(
@@ -410,7 +439,7 @@ while running:
 
                     lives -= 1
 
-                    player.x = 375
+                    player.x = CENTER_X - 25
 
                     hit_cooldown = 1200
 
@@ -426,7 +455,6 @@ while running:
         else:
 
             hit_cooldown -= dt
-
 
         # ----------------------------------
         # NEAR MISS
@@ -460,7 +488,7 @@ while running:
     # ======================================
     # DRAW BACKGROUND
 
-    if level >= 5:
+    if selected_mode == "night":
 
         grass_color = NIGHT_GRASS
         road_color = NIGHT_ROAD
@@ -475,14 +503,13 @@ while running:
         grass_color
     )
 
-
     # ======================================
     # ROAD
 
     pygame.draw.rect(
         screen,
         road_color,
-        (200, 0, 400, HEIGHT)
+        (ROAD_X, 0, ROAD_WIDTH, HEIGHT)
     )
 
 
@@ -491,13 +518,13 @@ while running:
     pygame.draw.rect(
         screen,
         WHITE,
-        (200, 0, 5, HEIGHT)
+        (ROAD_X, 0, 5, HEIGHT)
     )
 
     pygame.draw.rect(
         screen,
         WHITE,
-        (595, 0, 5, HEIGHT)
+        (ROAD_RIGHT - 5, 0, 5, HEIGHT)
     )
 
 
@@ -514,7 +541,7 @@ while running:
             screen,
             WHITE,
             (
-                395,
+                CENTER_X - 5,
                 y + road_offset,
                 10,
                 40
@@ -574,49 +601,54 @@ while running:
         WHITE
     )
 
-    lives_text = font.render(
-        "Lives: " + "♥ " * lives,
+    lives_label = font.render(
+        "Lives: ",
         True,
-        RED
+        WHITE
     )
 
 
     screen.blit(
         score_text,
-        (20, 20)
+        (25, 20)
     )
 
     screen.blit(
         coin_text,
-        (20, 55)
+        (25, 55)
     )
 
     screen.blit(
-        lives_text,
-        (20, 90)
+        lives_label,
+        (25, 90)
     )
 
+    for i in range(lives):
+        draw_heart(screen, 25 + lives_label.get_width() + (i * 24), 93, size=18, color=RED)
+        
     screen.blit(
         level_text,
-        (680, 20)
+        (WIDTH - level_text.get_width() - 25, 20)
     )
-
 
     # ======================================
     # NITRO BAR
 
+    nitro_bar_x = WIDTH - 265
+    nitro_bar_y = HEIGHT - 45
+
     pygame.draw.rect(
         screen,
         BLACK,
-        (530, 550, 240, 25)
+        (nitro_bar_x, nitro_bar_y, 240, 25)
     )
 
     pygame.draw.rect(
         screen,
         ORANGE,
         (
-            535,
-            555,
+            nitro_bar_x + 5, 
+            nitro_bar_y + 5, 
             int(nitro * 2.3),
             15
         )
@@ -630,9 +662,8 @@ while running:
 
     screen.blit(
         nitro_text,
-        (580, 525)
+        (nitro_bar_x +50, nitro_bar_y - 25)
     )
-
 
     # ======================================
     # NEAR MISS
@@ -647,14 +678,14 @@ while running:
 
         screen.blit(
             near_text,
-            (290, 150)
+            near_text.get_rect(center=(WIDTH // 2, 140))
         )
 
 
     # ======================================
     # LEVEL MESSAGE
 
-    if level >= 5:
+    if selected_mode == "night":
 
         night_text = small_font.render(
             "NIGHT MODE",
@@ -664,7 +695,7 @@ while running:
 
         screen.blit(
             night_text,
-            (20, 125)
+            (25, 140)
         )
 
 
@@ -708,17 +739,17 @@ while running:
 
         screen.blit(
             game_over_text,
-            (265, 220)
+            game_over_text.get_rect(center=(WIDTH //2, HEIGHT //2 - 50))
         )
 
         screen.blit(
             final_score,
-            (310, 300)
+            final_score.get_rect(center=(WIDTH //2, HEIGHT //2 + 10))
         )
 
         screen.blit(
             restart,
-            (280, 350)
+            restart.get_rect(center=(WIDTH //2, HEIGHT //2 + 60))
         )
 
 
@@ -729,4 +760,4 @@ while running:
 
     clock.tick(60)
 
-pygame.quit()
+pygame.quit() 

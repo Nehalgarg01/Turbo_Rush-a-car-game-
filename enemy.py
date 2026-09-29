@@ -3,12 +3,13 @@ import random
 
 
 class Enemy:
-    def __init__(self, speed):
+    def __init__(self, speed, lanes=None):
         self.width = 50
         self.height = 90
 
         # Four road lanes
-        lanes = [220, 315, 410, 505]
+        if lanes is None:
+            lanes = [220, 315, 410, 505]
 
         self.x = random.choice(lanes)
         self.y = -110
