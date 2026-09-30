@@ -1,10 +1,11 @@
 import pygame
 import random
+import os
 
 from player import Player
 from enemy import Enemy
-from coin import Coin
-
+from coin import Coin, Booster
+from sound import snd_coin, snd_crash, snd_start
 
 pygame.init()
 
@@ -77,6 +78,28 @@ def draw_heart(surface, x, y, size=18, color=RED):
 player = Player(CENTER_X - 25, HEIGHT - 130, min_x=ROAD_X + 5, max_x=ROAD_RIGHT - 55)
 
 # ==========================================
+# HIGH SCORE SYSTEM
+HIGH_SCORE_FILE = "highscore.txt"
+
+def load_high_score():
+    if os.path.exists(HIGH_SCORE_FILE):
+        try:
+            with open(HIGH_SCORE_FILE, "r") as f:
+                return int(f.read().strip())
+        except (ValueError, IOError):
+            return 0
+    return 0
+
+def save_high_score(new_high):
+    try:
+        with open(HIGH_SCORE_FILE, "w") as f:
+            f.write(str(new_high))
+    except IOError:
+        pass
+
+high_score = load_high_score()
+
+# ==========================================
 # GAME VARIABLES
 
 selected_mode = "day"
@@ -92,17 +115,15 @@ nitro = 100
 
 enemies = []
 coins = []
-
+boosters = []
 
 spawn_timer = 0
 coin_timer = 0
+booster_timer = 0
 
 road_offset = 0
-
 near_miss_message = 0
-
 hit_cooldown = 0
-
 
 game_started = False
 game_over = False
@@ -112,7 +133,8 @@ game_over = False
 # RESET GAME
 
 def reset_game():
-
+    
+    global high_score
     global score
     global coins_collected
     global lives
@@ -120,12 +142,15 @@ def reset_game():
     global nitro
     global enemies
     global coins
+    global boosters
     global spawn_timer
     global coin_timer
+    global booster_timer
     global road_offset
     global game_started
     global game_over
     global hit_cooldown
+    
 
     player.x = CENTER_X - 25
     player.y = HEIGHT - 130
@@ -141,6 +166,12 @@ def reset_game():
 
     enemies = []
     coins = []
+    boosters = []
+    booster_timer = 0
+    player.has_shield = False
+    player.boost_timer = 0
+    player.magnet_timer = 0
+    player.multiplier_timer = 0
 
     spawn_timer = 0
     coin_timer = 0
@@ -151,6 +182,7 @@ def reset_game():
 
     game_started = True
     game_over = False
+    snd_start.play()
 
 
 # ==========================================
@@ -382,22 +414,26 @@ while running:
         # MOVE COINS
 
         for coin in coins:
-
             coin.speed = road_speed
-
             coin.move()
 
+            # magnet pulls coins from any lane toward player
+            if player.magnet_timer > 0:
+                if coin.x < player.x:
+                    coin.x += 8
+                elif coin.x > player.x:
+                    coin.x -= 8
+                if coin.y < player.y:
+                    coin.y += 6
 
         # ----------------------------------
         # REMOVE COINS
     
-
         for coin in coins[:]:
 
             if coin.y > HEIGHT:
 
                 coins.remove(coin)
-
 
         # ----------------------------------
         # PLAYER RECT
@@ -412,12 +448,12 @@ while running:
             if player_rect.colliderect(
                 coin.get_rect()
             ):
-
+                snd_coin.play()
                 coins.remove(coin)
 
-                coins_collected += 1
-
-                score += 25
+                multiplier = 2 if player.multiplier_timer > 0 else 1
+                coins_collected += 1 * multiplier
+                score += 25 * multiplier
 
                 nitro += 20
 
@@ -425,6 +461,33 @@ while running:
 
                     nitro = 100
 
+        # BOOSTER SPAWNING & MOVEMENT
+        booster_timer += dt
+        if booster_timer >= 5000:  # Spawns every 5 seconds
+            boosters.append(Booster(road_speed, LANES))
+            booster_timer = 0
+
+        for b in boosters[:]:
+            b.speed = road_speed + (5 if player.boost_timer > 0 else 0)
+            b.move()
+            if b.y > HEIGHT:
+                boosters.remove(b)
+
+        # BOOSTER PICKUP
+        for b in boosters[:]:
+            if player_rect.colliderect(b.get_rect()):
+                if b.kind == "shield":
+                    player.has_shield = True
+                elif b.kind == "jetpack":
+                    player.boost_timer = 240       # 4 seconds
+                elif b.kind == "magnet":
+                    player.magnet_timer = 360      # 6 seconds
+                elif b.kind == "star":
+                    mult = 2 if player.multiplier_timer > 0 else 1
+                    score += 150 * mult
+                elif b.kind == "double":
+                    player.multiplier_timer = 300  # 5 seconds
+                boosters.remove(b)
 
         # ----------------------------------
         # COLLISION
@@ -436,22 +499,24 @@ while running:
                 if player_rect.colliderect(
                     enemy.get_rect()
                 ):
-
-                    lives -= 1
-
-                    player.x = CENTER_X - 25
-
-                    hit_cooldown = 1200
-
-                    enemy.y = HEIGHT + 200
-
-                    if lives <= 0:
-
-                        game_over = True
-
+                    snd_crash.play()
+                    if player.has_shield:
+                        player.has_shield = False
+                        hit_cooldown = 600
+                        enemy.y = HEIGHT + 200
+                        break
+                    else:
+                        lives -= 1
+                        player.x = CENTER_X - 25
+                        hit_cooldown = 1200
+                        enemy.y = HEIGHT + 200
+                        
+                        if lives <= 0:
+                           game_over = True
+                           if score > high_score:
+                             high_score = score
+                             save_high_score(high_score)
                     break
-
-
         else:
 
             hit_cooldown -= dt
@@ -553,17 +618,15 @@ while running:
     # COINS
 
     for coin in coins:
-
         coin.draw(screen)
-
+    for b in boosters : 
+        b.draw(screen)
 
     # ======================================
     # ENEMY CARS
 
     for enemy in enemies:
-
         enemy.draw(screen)
-
 
     # ======================================
     # PLAYER CAR
@@ -607,7 +670,6 @@ while running:
         WHITE
     )
 
-
     screen.blit(
         score_text,
         (25, 20)
@@ -630,6 +692,21 @@ while running:
         level_text,
         (WIDTH - level_text.get_width() - 25, 20)
     )
+    # Active booster status indicators (Top Right)
+    hud_y = 60
+    if player.has_shield:
+        screen.blit(small_font.render("SHIELD ACTIVE", True, (0, 220, 255)), (WIDTH - 180, hud_y))
+        hud_y += 24
+    if player.boost_timer > 0:
+        screen.blit(small_font.render(f"JETPACK: {player.boost_timer // 60}s", True, (255, 160, 0)), (WIDTH - 180, hud_y))
+        hud_y += 24
+    if player.magnet_timer > 0:
+        screen.blit(small_font.render(f"MAGNET: {player.magnet_timer // 60}s", True, (255, 80, 80)), (WIDTH - 180, hud_y))
+        hud_y += 24
+    if player.multiplier_timer > 0:
+        screen.blit(small_font.render(f"2X MULTIPLIER: {player.multiplier_timer // 60}s", True, (210, 80, 255)), (WIDTH - 180, hud_y))
+
+
 
     # ======================================
     # NITRO BAR
