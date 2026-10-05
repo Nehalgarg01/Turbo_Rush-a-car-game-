@@ -5,7 +5,9 @@ import os
 from player import Player
 from enemy import Enemy
 from coin import Coin, Booster
-from sound import snd_coin, snd_crash, snd_start
+from sound import (
+    snd_coin, snd_crash, snd_engine_start, snd_booster, snd_nitro, snd_near_miss, snd_game_over
+)
 
 pygame.init()
 
@@ -182,7 +184,9 @@ def reset_game():
 
     game_started = True
     game_over = False
-    snd_start.play()
+    #play the engine roar once on start 
+    snd_engine_start.play()
+    
 
 
 # ==========================================
@@ -339,6 +343,9 @@ while running:
             road_speed += 6
             enemy_speed += 6
 
+            if not pygame.mixer.Channel(2).get_busy():
+                pygame.mixer.Channel(2).play(snd_nitro)
+
         else:
 
             if nitro < 100:
@@ -476,6 +483,7 @@ while running:
         # BOOSTER PICKUP
         for b in boosters[:]:
             if player_rect.colliderect(b.get_rect()):
+                snd_booster.play()
                 if b.kind == "shield":
                     player.has_shield = True
                 elif b.kind == "jetpack":
@@ -513,6 +521,8 @@ while running:
                         
                         if lives <= 0:
                            game_over = True
+            
+                           snd_game_over.play()
                            if score > high_score:
                              high_score = score
                              save_high_score(high_score)
@@ -520,7 +530,6 @@ while running:
         else:
 
             hit_cooldown -= dt
-
         # ----------------------------------
         # NEAR MISS
         # ----------------------------------
@@ -543,6 +552,7 @@ while running:
                     score += 50
 
                     near_miss_message = 1000
+                    snd_near_miss.play()
 
 
         if near_miss_message > 0:
