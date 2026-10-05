@@ -8,8 +8,10 @@ from coin import Coin, Booster
 from sound import (
     snd_coin, snd_crash, snd_engine_start, snd_booster, snd_nitro, snd_near_miss, snd_game_over
 )
+from scenery import SceneryManager
 
 pygame.init()
+clock = pygame.time.Clock()
 
 
 # ==========================================
@@ -35,7 +37,7 @@ pygame.display.set_caption(
 )
 
 clock = pygame.time.Clock()
-
+scenery = SceneryManager(WIDTH, HEIGHT, ROAD_X, ROAD_RIGHT)
 
 # ==========================================
 # COLORS
@@ -360,6 +362,8 @@ while running:
         if road_offset >= 80:
 
             road_offset = 0
+        # update roadside scenery
+        scenery.update(dt, road_speed)
 
         # ----------------------------------
         # ENEMY SPAWNING
@@ -576,7 +580,9 @@ while running:
 
     screen.fill(
         grass_color
-    )
+    ) 
+
+    scenery.draw(screen, selected_mode)
 
     # ======================================
     # ROAD
