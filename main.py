@@ -42,11 +42,12 @@ scenery = SceneryManager(WIDTH, HEIGHT, ROAD_X, ROAD_RIGHT)
 # ==========================================
 # COLORS
 
-GRASS = (40, 150, 40)
-NIGHT_GRASS = (12, 55, 25)
+GRASS = (48, 128, 62)
+GRASS_DARK = (38, 108, 50)
+NIGHT_GRASS = (16, 38, 26)
 
-ROAD = (55, 55, 55)
-NIGHT_ROAD = (30, 30, 40)
+ROAD = (45, 47, 52)
+NIGHT_ROAD = (20, 22, 26)
 
 WHITE = (255, 255, 255)
 BLACK = (15, 15, 15)
